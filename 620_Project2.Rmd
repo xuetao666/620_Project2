@@ -1,0 +1,50 @@
+---
+title: "620 Project2_XT"
+author: "Xueting Tao"
+date: "4/6/2022"
+output: pdf_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, error = FALSE, warning = FALSE,fig.pos = "!H", out.extra = "")
+library(readxl)
+library(lubridate)
+library(dplyr)
+library(ggplot2)
+library(dplyr)
+library(gridExtra)
+library(GGally)
+library(circular)
+library(kableExtra)
+```
+
+
+## Read in data
+
+```{r}
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
