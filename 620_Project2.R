@@ -141,6 +141,16 @@ data_baseline=read.xlsx("620W22-Project2-Data.xlsx",sheetName ="Baseline")
 ##Data cleaning:
 #Exclude missing and impute variables:
 #Flip the total screen time and social screen time:
+
+pickup.1st.min=str_split(data_screen$Pickup.1st,pattern = ":")
+
+pickup.1st.min2=unlist(lapply(pickup.1st.min, function(x){as.numeric(x[1])*60+as.numeric(x[2])}))
+data_screen$Pickup.1st.min=c(pickup.1st.min2[-1],NA)
+data_screen=data_screen %>%
+  mutate(Pickup.1st.min=ifelse(Time==30,NA,Pickup.1st.min)) %>%
+  filter(!is.na(Pickup.1st.min))
+
+
 data_screen=data_screen %>%
   filter(Pickup.1st!="NA" & Day!="NA" & Tot.Scr.Time !="NA" & Tot.Soc.Time!="NA" & Pickups!="NA") %>%
   mutate(Tot.Scr.Time=as.numeric(Tot.Scr.Time),
@@ -154,13 +164,15 @@ data_screen=data_screen %>%
          InterventionB=ifelse(Time<15,0,ifelse(Time>22,1,NA))) %>%
   select(!Tot.Scr.Time2) %>%
   select(!Tot.Soc.Time2) %>%
-  mutate(Time=as.numeric(Time)) 
+  mutate(Time=as.numeric(Time)) %>%
+  mutate(Day=ifelse(Day=="Mon","Monday",
+                    ifelse(Day=="Tue","Tuesday",
+                           ifelse(Day=="Wed","Wednesday",
+                                  ifelse(Day=="Thu","Thursday",
+                                         ifelse(Day=="Fri","Friday",
+                                                ifelse(Day=="Sat","Saturday",
+                                                       ifelse(Day=="Sun","Sunday",Day))))))))
 
-
-pickup.1st.min=str_split(data_screen$Pickup.1st,pattern = ":")
-
-pickup.1st.min2=unlist(lapply(pickup.1st.min, function(x){as.numeric(x[1])*60+as.numeric(x[2])}))
-data_screen$Pickup.1st.min=c(pickup.1st.min2[-1],NA)
 
 data_baseline=data_baseline %>%
   mutate(age=ifelse(age=="NA",NA,age)) %>%
