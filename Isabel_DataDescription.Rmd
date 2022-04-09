@@ -402,3 +402,88 @@ weekend_lmm <- lmer(Pickup.1st.minute ~ Tot.Scr.Time + Tot.Soc.Time + Pickups + 
 
 summary(weekend_lmm)
 ```
+
+
+
+
+### SIMPLE LINEAR ANALYSIS 
+Overall:
+```{r}
+soc_lmm <- lm(Pickup.1st.minute ~ Tot.Soc.Time,screen_data_complete) 
+
+summary(soc_lmm)
+```
+
+
+```{r}
+pickups_lmm <- lm(Pickup.1st.minute ~ Pickups,screen_data_complete) 
+
+summary(pickups_lmm)
+```
+
+
+```{r}
+m1 <- lm(Pickup.1st.minute ~ Tot.Scr.Time + Tot.Soc.Time + Pickups,screen_data_complete) 
+
+summary(m1)
+```
+
+
+School-Days:
+
+
+
+```{r}
+weekday_data = screen_data_complete %>% filter(if_weekend == 0)
+soc_weekday_lm <- lm(Pickup.1st.minute ~ Tot.Soc.Time,weekday_data) 
+
+summary(soc_weekday_lm)
+```
+
+```{r}
+lmod2 <- lm(Pickup.1st.minute ~ Tot.Scr.Time,weekday_data) 
+
+summary(lmod2)
+```
+
+```{r}
+weekday_pickups_lm <- lm(Pickup.1st.minute ~ Pickups, weekday_data) 
+
+summary(weekday_pickups_lm)
+```
+
+
+```{r}
+weekday_lm <- lm(Pickup.1st.minute ~ Tot.Scr.Time + Tot.Soc.Time + Pickups,weekday_data) 
+
+summary(weekday_lm)
+```
+
+
+
+Non-School Days:
+```{r}
+weekend_data = screen_data_complete %>% filter(if_weekend == 1)
+soc_weekend_lm <- lm(Pickup.1st.minute ~ Tot.Soc.Time,weekend_data) 
+
+summary(soc_weekend_lm)
+```
+
+```{r}
+lmod3 <- lm(Pickup.1st.minute ~ Tot.Scr.Time,weekend_data) 
+
+summary(lmod3)
+```
+
+```{r}
+weekend_pickups_lm <- lm(Pickup.1st.minute ~ Pickups, weekend_data) 
+
+summary(weekend_pickups_lm)
+```
+
+
+```{r}
+weekend_lm <- lm(Pickup.1st.minute ~ Tot.Scr.Time + Tot.Soc.Time + Pickups,weekend_data) 
+
+summary(weekend_lm)
+```
