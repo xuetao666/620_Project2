@@ -1,0 +1,489 @@
+---
+title: "Data Description & Data Analysis I"
+author: "Isabel Gomez"
+date: "4/6/2022"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(readxl)
+library(skimr)
+library(table1)
+library(lubridate)
+library(dplyr)
+library(ggplot2)
+library(dplyr)
+library(gridExtra)
+#library(xlsx)
+library(stringr)
+library(stringi)
+```
+
+```{r}
+screen_data = read_xlsx("C:\\Users\\igome\\Downloads\\620W22-Project2-Data (1).xlsx", sheet = 1)
+baseline_data = read_xlsx("C:\\Users\\igome\\Downloads\\620W22-Project2-Data (1).xlsx", sheet = 2)
+```
+
+
+
+# BASELINE DATA
+
+```{r}
+
+
+baseline_data = baseline_data %>% mutate(
+                         Workmate =as.factor(workmate),
+                         Academic = as.factor(academic),
+                         Non.Academic = as.factor(non.academic),
+                         Pets = as.factor(pets),
+                         Sex = as.factor(sex),
+                         Degree = as.factor(degree),
+                         Job = as.factor(job),
+                         Age = age,
+                         Course.Hours = course.hours,
+                         Siblings = siblings,
+                         Apps = apps,
+                         Devices = devices,
+                         Procrastination = procrastination
+                         )
+
+table1::table1(~  Workmate + Academic  + Non.Academic + Pets +  + Age + Course.Hours + Degree + Job + Siblings + Apps + Devices + Procrastination, data = baseline_data, topclass="Rtable1-zebra")
+```
+
+
+STEP 1: Making first time pickup variable
+
+```{r}
+screen_data$Pickup.1st = strptime(screen_data$Pickup.1st, format = "%H:%M")
+
+screen_data = screen_data %>% mutate(Pickup.1st.minute=(hour(Pickup.1st)*60+minute(Pickup.1st)))
+ 
+ 
+ #NEED TO SHIFT WAKE-UP TIME, SO VARIABLE ARE ASSOCIATED WITH NEXT DAY. 
+ 
+screen_data$Pickup.1st.minute = c(screen_data$Pickup.1st.minute[-1],NA)
+ 
+screen_data = screen_data%>% mutate(Pickup.1st.minute = ifelse(Time == 30,NA,Pickup.1st.minute))
+```
+
+
+
+
+
+```{r}
+screen_data_complete =
+  screen_data %>% filter(is.na(Pickup.1st.minute) == FALSE) %>% select("ID","Time","Day","Tot.Scr.Time","Tot.Soc.Time","Pickups", "Pickup.1st", "Pickup.1st.minute","Imputed" )
+  
+```
+
+
+STEP 2: SANITY CHECK 
+
+```{r}
+screen_data_complete[as.numeric(screen_data_complete$Tot.Scr.Time) < as.numeric(screen_data_complete$Tot.Soc.Time),]
+```
+
+```{r}
+table(screen_data_complete$Day)
+```
+
+Day is written differently, need to update to make sure day is uniformed. 
+
+STEP 1: Figure out the dates for the ones written in number. There appears to be one user (ID # 10) who inputed numbers instead of the day. So wil need to insert the correct days. Given that all 34 users collected the data during the same dates, we can simply assume that users 10 data is also collected on the same dates (and hence days), as the other users. I manually fixed this on excel. 
+```{r}
+library(dplyr)
+screen_data_complete = screen_data_complete %>% 
+  mutate(day = recode(Day,
+                      "Friday" = "Fri",
+                      "Monday"  = "Mon",
+                      "Saturday" = "Sat",
+                      "Sunday" = "Sun",
+                      "Thursday" = "Thu",
+                      "Tuesday" = "Tue",
+                      "Wednesday" = "Wed"))
+#Factor and relevel days
+screen_data_complete$day  = factor(screen_data_complete$day, levels=c("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"))
+
+#Create binary weekend vs no weekend d
+screen_data_complete = screen_data_complete %>%
+  mutate(if_weekend = day %in% c("Sun", "Sat","Fri")) 
+
+```
+
+
+
+MAKE NUMERIC VARIABLES, NUMERIC
+```{r}
+screen_data_complete = screen_data_complete %>% mutate(
+  Tot.Scr.Time = as.numeric(Tot.Scr.Time),
+  Tot.Soc.Time = as.numeric(Tot.Soc.Time), 
+  Pickups = as.numeric(Pickups),
+  ID = as.factor(ID)
+)
+```
+
+```{r}
+table(screen_data_complete$day)
+```
+
+
+```{r}
+#table(screen_data_complete$Pickup.1st)
+```
+
+
+```{r}
+table(screen_data_complete$Time)
+```
+
+MAKE WAKEUP TIME
+
+
+```{r, fig.height=5, fig.width=7, fig.cap = "Spaghetti Plot (a) - (d) total screen time vs day, social screen time vs day, number of pickups vs day, wakeup time vs day"}
+# ggplot(screen_data_complete, aes(x = Time, y = Tot.Scr.Time,
+#                         color = if_weekend)) +
+#         geom_line(aes(color = as.factor(screen_data_complete$ID))) + 
+#         geom_point() +
+#         labs(x = "",y ="Total Screen Time (min)", caption = "(a) total screen time" ) +
+#        # ylim(15,702) +
+#       #  scale_color_manual(labels = c("weekdays", "weekends"), values = 
+#         #                    c("black","red")) +
+#     theme_minimal() +
+#     theme(axis.text.x = element_text(angle = 60, hjust = 1),
+#           axis.title.y = element_text(size = 8, hjust = 1),
+#           plot.caption = element_text(hjust=0.5,vjust = 0.1, size=9),
+#           legend.title = element_blank())
+
+# https://stackoverflow.com/questions/60436663/spaghetti-plot-using-ggplot-in-r
+scr_time_plot = ggplot(screen_data_complete, aes(Time, Tot.Scr.Time, color = ID))+
+  geom_line() +
+  labs(x = "Day",y ="Total Screen Time (min)", caption = "(a) total screen time" ) +
+  geom_line(data = screen_data_complete, aes(Time, y= Tot.Scr.Time),size = 0.5) +
+   theme_minimal() +
+    theme(axis.text.x = element_text(angle = 60, hjust = 1),
+          plot.caption = element_text(hjust=0.5,vjust = 0.1, size=9),
+          legend.position = "none")
+
+
+soc_time_plot = ggplot(screen_data_complete, aes(Time, Tot.Soc.Time, color = ID))+
+  geom_line() +
+  labs(x = "Day",y ="Total Social Time (min)", caption = "(b) total social time" ) +
+  geom_line(data = screen_data_complete, aes(Time, y= Tot.Soc.Time),size = 0.5) +
+   theme_minimal() +
+    theme(axis.text.x = element_text(angle = 60, hjust = 1),
+          plot.caption = element_text(hjust=0.5,vjust = 0.1, size=9),
+          legend.position = "none")
+
+pickup_plot = ggplot(screen_data_complete, aes(Time, Pickups, color = ID))+
+  geom_line() +
+  labs(x = "Day",y ="Total Number of Pickups", caption = "(c) total pickups" ) +
+  geom_line(data = screen_data_complete, aes(Time, y= Pickups),size = 0.5) +
+   theme_minimal() +
+    theme(axis.text.x = element_text(angle = 60, hjust = 1),
+          plot.caption = element_text(hjust=0.5,vjust = 0.1, size=9),
+          legend.position = "none")
+
+wakeup_plot = ggplot(screen_data_complete, aes(Time, Pickup.1st.minute, color = ID))+
+  geom_line() +
+  labs(x = "Day",y ="Wake-Up Time", caption = "(d) wake up time" ) +
+  geom_line(data = screen_data_complete, aes(Time, y= Pickup.1st.minute),size = 0.5) +
+   theme_minimal() +
+    theme(axis.text.x = element_text(angle = 60, hjust = 1),
+          plot.caption = element_text(hjust=0.5,vjust = 0.1, size=9),
+          legend.position = "none")
+
+grid.arrange(scr_time_plot,soc_time_plot,pickup_plot,wakeup_plot, ncol = 2, nrow = 2)
+```
+
+Lots of data, means harder to see patterns. May be useful to calculate mean.
+
+
+
+```{r}
+screen_data_complete = screen_data_complete %>% group_by(Time) %>% mutate( 
+  Avg.Tot.Scr.Time = mean(Tot.Scr.Time), 
+  Avg.Tot.Soc.Time = mean(Tot.Soc.Time),
+  Avg.Pickups = mean(Pickups),
+  Avg.Pickup.1st.minute = mean(Pickup.1st.minute))
+```
+
+```{r, fig.height=5, fig.width=7, fig.cap = "Spaghetti Plot (a) - (d) total screen time vs day, social screen time vs day, number of pickups vs day, wakeup time vs day"}
+# ggplot(screen_data_complete, aes(x = Time, y = Tot.Scr.Time,
+#                         color = if_weekend)) +
+#         geom_line(aes(color = as.factor(screen_data_complete$ID))) + 
+#         geom_point() +
+#         labs(x = "",y ="Total Screen Time (min)", caption = "(a) total screen time" ) +
+#        # ylim(15,702) +
+#       #  scale_color_manual(labels = c("weekdays", "weekends"), values = 
+#         #                    c("black","red")) +
+#     theme_minimal() +
+#     theme(axis.text.x = element_text(angle = 60, hjust = 1),
+#           axis.title.y = element_text(size = 8, hjust = 1),
+#           plot.caption = element_text(hjust=0.5,vjust = 0.1, size=9),
+#           legend.title = element_blank())
+
+# https://stackoverflow.com/questions/60436663/spaghetti-plot-using-ggplot-in-r
+avg_scr_time_plot = ggplot(screen_data_complete, aes(Time, Avg.Tot.Scr.Time))+
+  geom_line() +
+  labs(x = "Day",y ="Total Screen Time (min)", caption = "(a) total screen time" ) +
+  geom_line(data = screen_data_complete, aes(Time, y= Avg.Tot.Scr.Time),size = 0.5) +
+   theme_minimal() +
+    theme(axis.text.x = element_text(angle = 60, hjust = 1),
+          plot.caption = element_text(hjust=0.5,vjust = 0.1, size=9))
+
+
+avg_soc_time_plot = ggplot(screen_data_complete, aes(Time, Avg.Tot.Soc.Time))+
+  geom_line() +
+  labs(x = "Day",y ="Total Social Time (min)", caption = "(b) total social time" ) +
+  geom_line(data = screen_data_complete, aes(Time, y= Avg.Tot.Soc.Time),size = 0.5) +
+   theme_minimal() +
+    theme(axis.text.x = element_text(angle = 60, hjust = 1),
+          plot.caption = element_text(hjust=0.5,vjust = 0.1, size=9))
+
+avg_pickup_plot = ggplot(screen_data_complete, aes(Time, Avg.Pickups))+
+  geom_line() +
+  labs(x = "Day",y ="Total Number of Pickups", caption = "(c) total pickups" ) +
+  geom_line(data = screen_data_complete, aes(Time, y= Avg.Pickups),size = 0.5) +
+   theme_minimal() +
+    theme(axis.text.x = element_text(angle = 60, hjust = 1),
+          plot.caption = element_text(hjust=0.5,vjust = 0.1, size=9))
+
+avg_wakeup_plot = ggplot(screen_data_complete, aes(Time, Avg.Pickup.1st.minute))+
+  geom_line() +
+  labs(x = "Day",y ="Wake-Up Time", caption = "(d) wake up time" ) +
+  geom_line(data = screen_data_complete, aes(Time, y= Avg.Pickup.1st.minute),size = 0.5) +
+   theme_minimal() +
+    theme(axis.text.x = element_text(angle = 60, hjust = 1),
+          plot.caption = element_text(hjust=0.5,vjust = 0.1, size=9))
+
+grid.arrange(avg_scr_time_plot,avg_soc_time_plot,avg_pickup_plot,avg_wakeup_plot, ncol = 2, nrow = 2)
+```
+
+## ATTEMPT AT ANALYSIS LLM
+
+
+```{r}
+model1 = lm(Pickup.1st.minute ~ Tot.Scr.Time, screen_data_complete)
+```
+
+
+
+#BAR PLOTS OF EVERYTHING
+```{r}
+# Overview of the variables
+par(mfrow = c(2,4))
+barplot(table(screen_data_complete$Pickup.1st.minute), ylab = "Frequency", main = "Wake Up Time")
+barplot(table(screen_data_complete$Tot.Scr.Time), ylab = "Frequency", main = "Total Screen Time")
+barplot(table(screen_data_complete$Tot.Soc.Time), ylab = "Frequency", main = "Total Social Time")
+barplot(table(screen_data_complete$Pickups), ylab = "Frequency", main = "Number of Pickups")
+```
+
+
+The visual below allows us to see the first pickup time over time by each indivdual
+
+
+```{r}
+library(lattice) 
+xyplot(screen_data_complete$Pickup.1st.minute ~ screen_data_complete$Time| screen_data_complete$ID, strip=FALSE) 
+```
+```{r}
+xyplot(screen_data_complete$Tot.Scr.Time ~ screen_data_complete$Time| screen_data_complete$ID, strip=FALSE) 
+```
+
+
+```{r}
+xyplot(screen_data_complete$Tot.Soc.Time ~ screen_data_complete$Time| screen_data_complete$ID, strip=FALSE) 
+```
+
+```{r}
+xyplot(screen_data_complete$Tot.Soc.Time ~ screen_data_complete$Time| baseline_data$sex, strip=FALSE) 
+```
+
+
+```{r}
+mean(screen_data_complete$Pickup.1st.minute)
+```
+```{r}
+var(screen_data_complete$Pickup.1st.minute)
+```
+```{r}
+with(screen_data_complete, tapply(Pickup.1st.minute, list(subject = ID), mean))
+```
+
+```{r}
+with(screen_data_complete, tapply(Pickup.1st.minute, list(subject = ID), var))
+```
+
+
+```{r}
+library(lme4) 
+mmod <- lmer(Pickup.1st.minute ~ Tot.Scr.Time + (1|ID),screen_data_complete) 
+
+summary(mmod)
+```
+Overall:
+```{r}
+soc_lmm <- lmer(Pickup.1st.minute ~ Tot.Soc.Time + (1|ID),screen_data_complete) 
+
+summary(soc_lmm)
+```
+
+
+```{r}
+pickups_lmm <- lmer(Pickup.1st.minute ~ Pickups + (1|ID),screen_data_complete) 
+
+summary(pickups_lmm)
+```
+
+
+```{r}
+lmm <- lmer(Pickup.1st.minute ~ Tot.Scr.Time + Tot.Soc.Time + Pickups + (1|ID),screen_data_complete) 
+
+summary(lmm)
+```
+
+
+School-Days:
+
+
+
+```{r}
+weekday_data = screen_data_complete %>% filter(if_weekend == 0)
+soc_weekday_lmm <- lmer(Pickup.1st.minute ~ Tot.Soc.Time + (1|ID),weekday_data) 
+
+summary(soc_weekday_lmm)
+```
+
+```{r}
+mmod2 <- lmer(Pickup.1st.minute ~ Tot.Scr.Time + (1|ID),weekday_data) 
+
+summary(mmod2)
+```
+
+```{r}
+weekday_pickups_lmm <- lmer(Pickup.1st.minute ~ Pickups + (1|ID), weekday_data) 
+
+summary(weekday_pickups_lmm)
+```
+
+
+```{r}
+weekday_lmm <- lmer(Pickup.1st.minute ~ Tot.Scr.Time + Tot.Soc.Time + Pickups + (1|ID),weekday_data) 
+
+summary(weekday_lmm)
+```
+
+
+
+Non-School Days:
+```{r}
+weekend_data = screen_data_complete %>% filter(if_weekend == 1)
+soc_weekend_lmm <- lmer(Pickup.1st.minute ~ Tot.Soc.Time + (1|ID),weekend_data) 
+
+summary(soc_weekend_lmm)
+```
+
+```{r}
+mmod3 <- lmer(Pickup.1st.minute ~ Tot.Scr.Time + (1|ID),weekend_data) 
+
+summary(mmod3)
+```
+
+```{r}
+weekend_pickups_lmm <- lmer(Pickup.1st.minute ~ Pickups + (1|ID), weekend_data) 
+
+summary(weekend_pickups_lmm)
+```
+
+
+```{r}
+weekend_lmm <- lmer(Pickup.1st.minute ~ Tot.Scr.Time + Tot.Soc.Time + Pickups + (1|ID),weekend_data) 
+
+summary(weekend_lmm)
+```
+
+
+
+
+### SIMPLE LINEAR ANALYSIS 
+Overall:
+```{r}
+soc_lmm <- lm(Pickup.1st.minute ~ Tot.Soc.Time,screen_data_complete) 
+
+summary(soc_lmm)
+```
+
+
+```{r}
+pickups_lmm <- lm(Pickup.1st.minute ~ Pickups,screen_data_complete) 
+
+summary(pickups_lmm)
+```
+
+
+```{r}
+m1 <- lm(Pickup.1st.minute ~ Tot.Scr.Time + Tot.Soc.Time + Pickups,screen_data_complete) 
+
+summary(m1)
+```
+
+
+School-Days:
+
+
+
+```{r}
+weekday_data = screen_data_complete %>% filter(if_weekend == 0)
+soc_weekday_lm <- lm(Pickup.1st.minute ~ Tot.Soc.Time,weekday_data) 
+
+summary(soc_weekday_lm)
+```
+
+```{r}
+lmod2 <- lm(Pickup.1st.minute ~ Tot.Scr.Time,weekday_data) 
+
+summary(lmod2)
+```
+
+```{r}
+weekday_pickups_lm <- lm(Pickup.1st.minute ~ Pickups, weekday_data) 
+
+summary(weekday_pickups_lm)
+```
+
+
+```{r}
+weekday_lm <- lm(Pickup.1st.minute ~ Tot.Scr.Time + Tot.Soc.Time + Pickups,weekday_data) 
+
+summary(weekday_lm)
+```
+
+
+
+Non-School Days:
+```{r}
+weekend_data = screen_data_complete %>% filter(if_weekend == 1)
+soc_weekend_lm <- lm(Pickup.1st.minute ~ Tot.Soc.Time,weekend_data) 
+
+summary(soc_weekend_lm)
+```
+
+```{r}
+lmod3 <- lm(Pickup.1st.minute ~ Tot.Scr.Time,weekend_data) 
+
+summary(lmod3)
+```
+
+```{r}
+weekend_pickups_lm <- lm(Pickup.1st.minute ~ Pickups, weekend_data) 
+
+summary(weekend_pickups_lm)
+```
+
+
+```{r}
+weekend_lm <- lm(Pickup.1st.minute ~ Tot.Scr.Time + Tot.Soc.Time + Pickups,weekend_data) 
+
+summary(weekend_lm)
+```
